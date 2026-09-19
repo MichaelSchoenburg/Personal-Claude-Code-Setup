@@ -1,0 +1,110 @@
+{
+  "permissions": {
+    "deny": [
+      "Read(**/.env)",
+      "Read(**/.env.*)",
+      "Read(**/*secret*)",
+      "Read(**/*credential*)",
+      "Read(**/*password*)",
+      "Read(**/*.pem)",
+      "Read(**/*.key)",
+      "Read(**/*dump*.sql)",
+      "Read(**/*dump*.json)",
+      "Read(**/*backup*.sql)",
+      "Read(**/*.bak)",
+      "Read(**/*.log)",
+      "Read(**/logs/**)",
+      "Grep(**/.env)",
+      "Grep(**/.env.*)",
+      "Grep(**/*secret*)",
+      "Grep(**/*credential*)",
+      "Grep(**/*password*)",
+      "Grep(**/*.pem)",
+      "Grep(**/*.key)",
+      "Grep(**/*dump*.sql)",
+      "Grep(**/*dump*.json)",
+      "Grep(**/*backup*.sql)",
+      "Grep(**/*.bak)",
+      "Grep(**/*.log)",
+      "Grep(**/logs/**)",
+      "Glob(**/.env)",
+      "Glob(**/.env.*)",
+      "Glob(**/*secret*)",
+      "Glob(**/*credential*)",
+      "Glob(**/*password*)",
+      "Glob(**/*.pem)",
+      "Glob(**/*.key)",
+      "Glob(**/*dump*.sql)",
+      "Glob(**/*dump*.json)",
+      "Glob(**/*backup*.sql)",
+      "Glob(**/*.bak)",
+      "Glob(**/*.log)",
+      "Glob(**/logs/**)",
+      "Bash(cat *secret*)",
+      "Bash(cat *credential*)",
+      "Bash(cat *password*)",
+      "Bash(cat *.env*)",
+      "Bash(cat *.pem)",
+      "Bash(cat *.key)",
+      "Bash(cat *dump*)",
+      "Bash(cat *.log)",
+      "Bash(head *secret*)",
+      "Bash(head *.log)",
+      "Bash(tail *secret*)",
+      "Bash(tail *.log)",
+      "PowerShell(Get-Content *secret*)",
+      "PowerShell(Get-Content *credential*)",
+      "PowerShell(Get-Content *password*)",
+      "PowerShell(Get-Content *.env*)",
+      "PowerShell(Get-Content *.pem)",
+      "PowerShell(Get-Content *.key)",
+      "PowerShell(Get-Content *dump*)",
+      "PowerShell(Get-Content *.log)",
+      "PowerShell(cat *secret*)",
+      "PowerShell(type *secret*)"
+    ],
+    "defaultMode": "auto"
+  },
+  "model": "claude-sonnet-5",
+  "hooks": {
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "pwsh",
+            "args": [
+              "-NoProfile",
+              "-ExecutionPolicy",
+              "Bypass",
+              "-Command",
+              "& \"$env:USERPROFILE\\.claude\\hooks\\pii-guard.ps1\""
+            ],
+            "timeout": 20,
+            "statusMessage": "PII-Pruefung (GR-T3)..."
+          }
+        ]
+      }
+    ]
+  },
+  "statusLine": {
+    "type": "command",
+    "command": "powershell -NoProfile -ExecutionPolicy Bypass -Command \"& \\\"$env:USERPROFILE\\.claude\\statusline.ps1\\\"\""
+  },
+  "enabledPlugins": {
+  },
+  "effortLevel": "high",
+  "modelSettings": {
+    "claude-sonnet-5": {
+      "effortLevel": "high"
+    },
+    "claude-opus-5": {
+      "effortLevel": "xhigh"
+    }
+  },
+  "autoUpdatesChannel": "latest",
+  "tui": "fullscreen",
+  "skipDangerousModePermissionPrompt": true,
+  "theme": "auto",
+  "skipAutoPermissionPrompt": true
+}
