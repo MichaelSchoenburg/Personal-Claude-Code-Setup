@@ -6,7 +6,7 @@ input=$(cat)
 
 # Alle benoetigten Felder in einem jq-Aufruf; Trenner \x1f, damit leere Felder erhalten bleiben.
 IFS=$'\x1f' read -r model effort used_pct cwd \
-    h5_pct h5_reset d7_pct d7_reset sp_pct sp_reset < <(
+    h5_pct h5_reset d7_pct d7_reset sp_pct sp_reset ctx_tokens ctx_size < <(
     printf '%s' "$input" | jq -r '
         [ .model.display_name,
           .effort.level,
@@ -17,7 +17,9 @@ IFS=$'\x1f' read -r model effort used_pct cwd \
           .rate_limits.seven_day.used_percentage,
           .rate_limits.seven_day.resets_at,
           .rate_limits.spend_limit.used_percentage,
-          .rate_limits.spend_limit.resets_at
+          .rate_limits.spend_limit.resets_at,
+          .context_window.total_input_tokens,
+          .context_window.context_window_size
         ] | map(. // "") | join("")' 2>/dev/null
 )
 
@@ -34,7 +36,34 @@ parts=()
 
 [ -n "$model" ]  && parts+=("${cyan}${model}${reset}")
 [ -n "$effort" ] && parts+=("${yellow}${effort}${reset}")
-[ -n "$used_pct" ] && parts+=("${green}$(printf '%.0f' "$used_pct")% ctx${reset}")
+# Kontext-Farbe nach ABSOLUTER Tokenzahl (Qualitaetsverlust haengt an der Laenge,
+# nicht am Prozentwert des Fensters; Schwellen sind Faustwerte, keine belegten Grenzen).
+# Gruen bis CTX_WARN_K, dann Verlauf ueber gelb (CTX_YELLOW_K) nach rot (ab CTX_RED_K).
+# 256-Farben-Wuerfel (16 + 36*r + 6*g + b): gruen (0,5,0) -> gelb (5,5,0) -> rot (5,0,0)
+CTX_WARN_K=100
+CTX_YELLOW_K=200
+CTX_RED_K=400
+
+context_color() {
+    local k=$(( $1 / 1000 )) step r g
+    if   (( k < CTX_WARN_K ));   then printf '%s' "$green"; return
+    elif (( k < CTX_YELLOW_K )); then step=$(( (k - CTX_WARN_K) * 5 / (CTX_YELLOW_K - CTX_WARN_K) ))          # 0..4
+    elif (( k < CTX_RED_K ));    then step=$(( 5 + (k - CTX_YELLOW_K) * 5 / (CTX_RED_K - CTX_YELLOW_K) ))     # 5..9
+    else step=10
+    fi
+    if (( step <= 5 )); then r=$step g=5; else r=5 g=$(( 10 - step )); fi
+    printf '\033[38;5;%dm' $(( 16 + 36 * r + 6 * g ))
+}
+
+if [ -n "$used_pct" ]; then
+    ctx_pct=$(printf '%.0f' "$used_pct")
+    # total_input_tokens kann kurz 0 sein (z.B. nach /compact); dann aus Prozent x Fenstergroesse ableiten
+    tokens=${ctx_tokens%.*}
+    if (( ${tokens:-0} <= 0 )) && [ -n "$ctx_size" ]; then
+        tokens=$(awk -v p="$used_pct" -v s="$ctx_size" 'BEGIN { printf "%d", p * s / 100 }')
+    fi
+    parts+=("$(context_color "${tokens:-0}")${ctx_pct}% ctx${reset}")
+fi
 
 # Verbleibende Zeit bis zum Reset: 2d3h / 4h05m / 12m
 format_remaining() {

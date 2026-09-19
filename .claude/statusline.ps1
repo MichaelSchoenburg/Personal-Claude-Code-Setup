@@ -30,9 +30,33 @@ if ($effort) {
     $parts.Add("$yellow$effort$reset")
 }
 
+# Kontext-Farbe nach ABSOLUTER Tokenzahl (Qualitaetsverlust haengt an der Laenge,
+# nicht am Prozentwert des Fensters; Schwellen sind Faustwerte, keine belegten Grenzen).
+# Gruen bis CTX_WARN_K, dann Verlauf ueber gelb (CTX_YELLOW_K) nach rot (ab CTX_RED_K).
+# 256-Farben-Wuerfel (16 + 36*r + 6*g + b): gruen (0,5,0) -> gelb (5,5,0) -> rot (5,0,0)
+$ctxWarnK = 100
+$ctxYellowK = 200
+$ctxRedK = 400
+
+function Get-ContextColor {
+    param([double] $Tokens)
+    $k = [Math]::Floor($Tokens / 1000)
+    if ($k -lt $ctxWarnK) { return $green }
+    if ($k -lt $ctxYellowK) { $step = [int][Math]::Floor(($k - $ctxWarnK) * 5 / ($ctxYellowK - $ctxWarnK)) }          # 0..4
+    elseif ($k -lt $ctxRedK) { $step = 5 + [int][Math]::Floor(($k - $ctxYellowK) * 5 / ($ctxRedK - $ctxYellowK)) }   # 5..9
+    else { $step = 10 }
+    if ($step -le 5) { $r = $step; $g = 5 } else { $r = 5; $g = 10 - $step }
+    return "$esc[38;5;$(16 + 36 * $r + 6 * $g)m"
+}
+
 if ($null -ne $usedPct) {
     $ctxStr = "{0:N0}% ctx" -f [double]$usedPct
-    $parts.Add("$green$ctxStr$reset")
+    # total_input_tokens kann kurz 0 sein (z.B. nach /compact); dann aus Prozent x Fenstergroesse ableiten
+    $tokens = [double]$data.context_window.total_input_tokens
+    if ($tokens -le 0 -and $data.context_window.context_window_size) {
+        $tokens = [double]$usedPct * [double]$data.context_window.context_window_size / 100
+    }
+    $parts.Add("$(Get-ContextColor $tokens)$ctxStr$reset")
 }
 
 # Usage-Limits des Abos: liefert Claude Code als rate_limits mit (nur bei
